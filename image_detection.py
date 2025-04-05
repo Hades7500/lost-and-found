@@ -14,7 +14,6 @@ def image_identification(lost_item):
             class_id = int(box.cls)
             label = names[class_id]
             confidence = float(box.conf)
-            # print(f"Detected: {label} ({confidence:.2f})")
             if (confidence > 0.85):
                 tags += [label]
     

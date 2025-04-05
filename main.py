@@ -3,14 +3,15 @@ import os
 import sqlite3
 import shutil
 from pathlib import Path
+from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QLabel,
                              QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog,
                              QLineEdit, QListWidget, QListWidgetItem,
-                             QMessageBox, QTabWidget, QGridLayout,
-                             QStackedLayout, QRadioButton, QScrollArea,
-                             QDesktopWidget)
+                             QMessageBox, QTabWidget, QGridLayout, QSpacerItem,
+                             QSizePolicy, QStackedLayout, QRadioButton, QScrollArea,
+                             QDesktopWidget, QComboBox)
 from PyQt5.QtGui import QPixmap, QFont, QImage
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QSize, QDateTime
 from image_detection import image_identification
 
 # Configure database path
@@ -51,6 +52,13 @@ class MainWindow(QMainWindow):
             QListWidget {
                 font-size: 13px;
             }
+            QComboBox {
+                padding: 6px;
+                font-size: 13px;
+            }
+            QScrollArea {
+                border: none;
+            }
         """)
         self.create_database()
 
@@ -81,7 +89,12 @@ class MainWindow(QMainWindow):
                     item_type TEXT NOT NULL,
                     image_path TEXT NOT NULL,
                     tags TEXT,
-                    date_reported DATETIME DEFAULT CURRENT_TIMESTAMP
+                    location TEXT,
+                    area TEXT,
+                    building TEXT,
+                    floor TEXT,
+                    specific_location TEXT,
+                    date_reported TEXT DEFAULT CURRENT_TIMESTAMP
                 )
             """)
             conn.commit()
@@ -98,7 +111,17 @@ class ImageTab(QWidget):
         self.save_directory = os.path.join(save_directory, item_type.lower())
         os.makedirs(self.save_directory, exist_ok=True)
 
-        self.main_layout = QVBoxLayout(self)
+        # Main scroll area for the entire tab
+        self.main_scroll = QScrollArea()
+        self.main_scroll.setWidgetResizable(True)
+        self.main_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        
+        # Container widget for scroll area
+        self.container = QWidget()
+        self.main_scroll.setWidget(self.container)
+        
+        # Main layout for container
+        self.main_layout = QVBoxLayout(self.container)
         self.main_layout.setContentsMargins(10, 10, 10, 10)
         self.main_layout.setSpacing(15)
 
@@ -116,8 +139,12 @@ class ImageTab(QWidget):
         self.stacked_layout = QStackedLayout()
         self.main_layout.addLayout(self.stacked_layout)
 
-        # Upload UI
+        # Upload UI - now in its own scrollable area
+        self.upload_scroll = QScrollArea()
+        self.upload_scroll.setWidgetResizable(True)
         self.upload_widget = QWidget()
+        self.upload_scroll.setWidget(self.upload_widget)
+        
         self.upload_layout = QGridLayout(self.upload_widget)
         self.upload_layout.setSpacing(15)
         self.upload_layout.setContentsMargins(20, 20, 20, 20)
@@ -142,38 +169,69 @@ class ImageTab(QWidget):
         self.upload_button.clicked.connect(self.upload_image)
         self.upload_layout.addWidget(self.upload_button, 2, 0, 1, 2)
 
-        # Tags
-        self.upload_layout.addWidget(QLabel("Tags (comma separated):"), 3, 0)
-        self.tag_input_layout = QHBoxLayout()
-        self.tag_input = QLineEdit()
-        self.tag_input.setPlaceholderText("e.g., wallet, black, leather")
-        self.tag_button = QPushButton("Add Tags")
-        self.tag_button.clicked.connect(self.add_tags)
-        self.tag_input_layout.addWidget(self.tag_input)
-        self.tag_input_layout.addWidget(self.tag_button)
-        self.upload_layout.addLayout(self.tag_input_layout, 3, 1)
+        # Location Information
+        self.upload_layout.addWidget(QLabel("Location Details:"), 3, 0, 1, 2)
+        
+        # Area (University/Hostel)
+        self.upload_layout.addWidget(QLabel("Area:"), 4, 0)
+        self.area_combo = QComboBox()
+        self.area_combo.addItems(["University", "Hostel"])
+        self.area_combo.currentIndexChanged.connect(self.update_building_options)
+        self.upload_layout.addWidget(self.area_combo, 4, 1)
+        
+        # Building
+        self.upload_layout.addWidget(QLabel("Building:"), 5, 0)
+        self.building_combo = QComboBox()
+        self.building_combo.currentIndexChanged.connect(self.update_floor_options)
+        self.upload_layout.addWidget(self.building_combo, 5, 1)
+        
+        # Floor
+        self.upload_layout.addWidget(QLabel("Floor:"), 6, 0)
+        self.floor_combo = QComboBox()
+        self.upload_layout.addWidget(self.floor_combo, 6, 1)
+        
+        # Specific Location
+        self.upload_layout.addWidget(QLabel("Specific Location:"), 7, 0)
+        self.specific_location_input = QLineEdit()
+        self.specific_location_input.setPlaceholderText("e.g., Room 205, Near reception")
+        self.upload_layout.addWidget(self.specific_location_input, 7, 1)
 
-        self.upload_layout.addWidget(QLabel("Current Tags:"), 4, 0, 1, 2)
-        self.tag_list_widget = QListWidget()
-        self.tag_list_widget.setMaximumHeight(100)
-        self.upload_layout.addWidget(self.tag_list_widget, 5, 0, 1, 2)
+        # Initialize location dropdowns
+        self.update_building_options()
+        self.update_floor_options()
+
+        # # Tags
+        # self.upload_layout.addWidget(QLabel("Tags (comma separated):"), 8, 0)
+        # self.tag_input_layout = QHBoxLayout()
+        # self.tag_input = QLineEdit()
+        # self.tag_input.setPlaceholderText("e.g., wallet, black, leather")
+        # self.tag_button = QPushButton("Add Tags")
+        # self.tag_button.clicked.connect(self.add_tags)
+        # self.tag_input_layout.addWidget(self.tag_input)
+        # self.tag_input_layout.addWidget(self.tag_button)
+        # self.upload_layout.addLayout(self.tag_input_layout, 8, 1)
+
+        # self.upload_layout.addWidget(QLabel("Current Tags:"), 9, 0, 1, 2)
+        # self.tag_list_widget = QListWidget()
+        # self.tag_list_widget.setMaximumHeight(100)
+        # self.upload_layout.addWidget(self.tag_list_widget, 10, 0, 1, 2)
 
         # Buttons
         self.bottom_buttons_layout = QHBoxLayout()
         self.submit_button = QPushButton("Submit Report")
         self.submit_button.clicked.connect(self.submit_data)
-        self.delete_tag_button = QPushButton("Delete Selected Tag")
-        self.delete_tag_button.clicked.connect(self.delete_selected_tag)
+        # self.delete_tag_button = QPushButton("Delete Selected Tag")
+        # self.delete_tag_button.clicked.connect(self.delete_selected_tag)
         self.clear_button = QPushButton("Clear Form")
         self.clear_button.clicked.connect(self.reset_form)
         
         self.bottom_buttons_layout.addWidget(self.submit_button)
-        self.bottom_buttons_layout.addWidget(self.delete_tag_button)
+        # self.bottom_buttons_layout.addWidget(self.delete_tag_button)
         self.bottom_buttons_layout.addWidget(self.clear_button)
         self.bottom_buttons_layout.addStretch()
-        self.upload_layout.addLayout(self.bottom_buttons_layout, 6, 0, 1, 2)
+        self.upload_layout.addLayout(self.bottom_buttons_layout, 11, 0, 1, 2)
 
-        self.stacked_layout.addWidget(self.upload_widget)
+        self.stacked_layout.addWidget(self.upload_scroll)
 
         # Existing Items
         self.existing_widget = QWidget()
@@ -187,7 +245,7 @@ class ImageTab(QWidget):
 
         self.search_layout = QHBoxLayout()
         self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("Search by tags...")
+        self.search_input.setPlaceholderText("Search by tags or location...")
         self.search_button = QPushButton("Search")
         self.search_button.clicked.connect(self.show_existing_items)
         self.clear_search_button = QPushButton("Clear")
@@ -212,9 +270,51 @@ class ImageTab(QWidget):
         self.upload_new_radio.toggled.connect(lambda checked: self.stacked_layout.setCurrentIndex(0) if checked else None)
         self.view_existing_radio.toggled.connect(self.show_existing_items)
 
+        # Set the main scroll as the layout
+        layout = QVBoxLayout(self)
+        layout.addWidget(self.main_scroll)
+        layout.setContentsMargins(0, 0, 0, 0)
+
         self.current_image_path = None
         self.displayed_image = None
         self.tags = []
+
+    def update_building_options(self):
+        self.building_combo.clear()
+        area = self.area_combo.currentText()
+        
+        if area == "University":
+            self.building_combo.addItems(["Dome building", "AB1 building", "AB2 building", "AB3 building", "Grand stairs"])
+        elif area == "Hostel":
+            self.building_combo.addItems(["B1", "B2", "B3", "B4", "B5", "B6", "B7", "B8", "B10", 
+                                        "G1", "G2", "G3", "G4", "G5", "G6", "G7",
+                                        "Bluedove mess", "Quess mess"])
+        
+        self.update_floor_options()
+
+    def update_floor_options(self):
+        self.floor_combo.clear()
+        area = self.area_combo.currentText()
+        building = self.building_combo.currentText()
+        
+        if area == "University":
+            if building == "Grand stairs":
+                self.floor_combo.addItems(["First floor", "Second floor"])
+            elif building == "Dome building":
+                self.floor_combo.addItems(["Ground floor", "1st floor", "2nd floor", "3rd floor", "4th floor"])
+            elif building in ["AB1 building", "AB2 building", "AB3 building"]:
+                self.floor_combo.addItems(["1st floor", "2nd floor", "3rd floor"])
+                self.floor_combo.setEnabled(True)
+            else:  # Other university buildings
+                self.floor_combo.addItems(["Ground floor", "1st floor", "2nd floor", "3rd floor"])
+        elif area == "Hostel":
+            if building in ["Bluedove mess", "Quess mess"]:
+                self.floor_combo.addItems(["Ground floor", "First floor"])
+                self.floor_combo.setEnabled(True)
+            else:
+                # For regular hostels, no floor selection needed
+                self.floor_combo.addItem("Not applicable")
+                self.floor_combo.setEnabled(False)
 
     def upload_image(self):
         file_path, _ = QFileDialog.getOpenFileName(
@@ -227,67 +327,61 @@ class ImageTab(QWidget):
         if not file_path:
             return
 
+        # Check file size (5MB limit)
+        if os.path.getsize(file_path) > 5 * 1024 * 1024:
+            QMessageBox.warning(self, "Error", "Image file is too large (maximum 5MB allowed)")
+            return
             
         self.current_image_path = file_path
         try:
-            image = QImage(file_path)
-            if image.isNull():
+            # Load the image directly as pixmap for better performance
+            pixmap = QPixmap(file_path)
+            if pixmap.isNull():
                 raise ValueError("Invalid image file")
                 
-            pixmap = QPixmap.fromImage(image)
+            # Scale the pixmap while maintaining aspect ratio
             scaled_pixmap = pixmap.scaled(
                 self.image_display_width, 
                 self.image_display_height,
                 Qt.KeepAspectRatio,
                 Qt.SmoothTransformation
             )
-            self.displayed_image = scaled_pixmap
-            self.image_label.setPixmap(self.displayed_image)
+            self.image_label.setPixmap(scaled_pixmap)
             self.image_label.setStyleSheet("border: 2px solid #ccc; background-color: transparent;")
         except Exception as e:
             QMessageBox.warning(self, "Error", f"Could not load image: {str(e)}")
             self.current_image_path = None
-
-    def add_tags(self):
-        tag_text = self.tag_input.text().strip()
-        if not tag_text:
-            return
-            
-        # Split tags by commas and clean them up
-        new_tags = [tag.strip() for tag in tag_text.split(",") if tag.strip()]
-        
-        if not new_tags:
-            return
-            
-        if len(self.tags) + len(new_tags) > 10:
-            QMessageBox.warning(self, "Limit Reached", "Maximum 10 tags allowed")
-            return
-            
-        for tag in new_tags:
-            if len(tag) > 50:
-                QMessageBox.warning(self, "Too Long", "Individual tags must be 50 characters or less")
-                continue
-                
-            if tag not in self.tags:
-                self.tags.append(tag)
-                self.tag_list_widget.addItem(QListWidgetItem(tag))
-                
-        self.tag_input.clear()
-
-    def delete_selected_tag(self):
-        selected_items = self.tag_list_widget.selectedItems()
-        if not selected_items:
-            QMessageBox.information(self, "No Selection", "Please select a tag to delete.")
-            return
-            
-        for item in selected_items:
-            self.tags.remove(item.text())
-            self.tag_list_widget.takeItem(self.tag_list_widget.row(item))
+            self.image_label.setText("Failed to load image")
+            self.image_label.setStyleSheet("""
+                border: 2px dashed #ccc; 
+                background-color: #f9f9f9;
+                color: #666;
+                font-style: italic;
+            """)
 
     def submit_data(self):
         if not self.current_image_path:
             QMessageBox.warning(self, "Warning", "Please select an image to report.")
             return
+
+        area = self.area_combo.currentText().strip()
+        building = self.building_combo.currentText().strip()
+        floor = self.floor_combo.currentText().strip()
+        specific_location = self.specific_location_input.text().strip()
+        tags = image_identification(self.current_image_path)
+        
+        if not area or not building or not specific_location:
+            QMessageBox.warning(self, "Warning", "Please provide complete location information.")
+            return
+            
+        if area == "Hostel" and building in ["Bluedove mess", "Quess mess"] and not floor:
+            QMessageBox.warning(self, "Warning", "Please select a floor for the mess.")
+            return
+            
+        location = f"{area}, {building}"
+        if floor != "Not applicable":
+            location += f", {floor}"
+        location += f", {specific_location}"
 
         if not self.tags:
             reply = QMessageBox.question(
@@ -309,28 +403,32 @@ class ImageTab(QWidget):
         if reply == QMessageBox.No:
             return
             
-        base_name = os.path.splitext(os.path.basename(self.current_image_path))[0]
-        ext = os.path.splitext(self.current_image_path)[1]
-        new_filename = f"{base_name}{ext}"
+        # Generate unique filename using timestamp
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        file_ext = os.path.splitext(self.current_image_path)[1]
+        new_filename = f"{self.item_type.lower()}_{timestamp}{file_ext}"
         save_path = os.path.join(self.save_directory, new_filename)
-        tags = image_identification(self.current_image_path)
+
         conn = None
         try:
+            # Create directory if it doesn't exist
+            os.makedirs(self.save_directory, exist_ok=True)
+            
             # Copy the image to our storage directory
             shutil.copy2(self.current_image_path, save_path)
 
             conn = sqlite3.connect(DATABASE_FILE)
             cursor = conn.cursor()
             cursor.execute("""
-                INSERT INTO items (item_type, image_path, tags)
-                VALUES (?, ?, ?)
-            """, (self.item_type, save_path, ",".join(tags)))
+                INSERT INTO items (item_type, image_path, tags, location, area, building, floor, specific_location)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """, (self.item_type, save_path, ",".join(tags), location, area, building, floor, specific_location))
             conn.commit()
 
             QMessageBox.information(
                 self, 
                 "Success", 
-                f"{self.item_type} item reported successfully.\n\nTags: {', '.join(self.tags) if self.tags else 'None'}"
+                f"{self.item_type} item reported successfully.\n\nLocation: {location}\nTags: {', '.join(self.tags) if self.tags else 'None'}"
             )
             self.reset_form()
         except Exception as e:
@@ -359,13 +457,10 @@ class ImageTab(QWidget):
             font-style: italic;
         """)
         
-        if hasattr(self, 'displayed_image'):
-            del self.displayed_image
         self.current_image_path = None
-        
-        self.tags = []
-        self.tag_list_widget.clear()
-        self.tag_input.clear()
+        self.area_combo.setCurrentIndex(0)
+        self.update_building_options()
+        self.specific_location_input.clear()
         
         # Switch back to upload view but don't trigger show_existing_items
         self.upload_new_radio.setChecked(True)
@@ -390,14 +485,14 @@ class ImageTab(QWidget):
             
             if search_term:
                 cursor.execute("""
-                    SELECT image_path, tags, date_reported 
+                    SELECT image_path, tags, location, date_reported 
                     FROM items 
-                    WHERE item_type=? AND tags LIKE ?
+                    WHERE item_type=? AND (LOWER(tags) LIKE ? OR LOWER(location) LIKE ?)
                     ORDER BY date_reported DESC
-                """, (self.item_type, f"%{search_term}%"))
+                """, (self.item_type, f"%{search_term}%", f"%{search_term}%"))
             else:
                 cursor.execute("""
-                    SELECT image_path, tags, date_reported 
+                    SELECT image_path, tags, location, date_reported 
                     FROM items 
                     WHERE item_type=? 
                     ORDER BY date_reported DESC
@@ -413,7 +508,7 @@ class ImageTab(QWidget):
                 screen_width = QDesktopWidget().screenGeometry().width()
                 image_width = int(screen_width * 0.4)
 
-                for image_path, tags, date_reported in items:
+                for image_path, tags, location, date_reported in items:
                     item_widget = QWidget()
                     item_layout = QVBoxLayout(item_widget)
                     item_layout.setContentsMargins(10, 10, 10, 10)
@@ -422,11 +517,17 @@ class ImageTab(QWidget):
                     # Image display
                     try:
                         if os.path.exists(image_path):
-                            pixmap = QPixmap(image_path).scaledToWidth(image_width, Qt.SmoothTransformation)
-                            image_label = QLabel()
-                            image_label.setPixmap(pixmap)
-                            image_label.setAlignment(Qt.AlignCenter)
-                            item_layout.addWidget(image_label)
+                            pixmap = QPixmap(image_path)
+                            if not pixmap.isNull():
+                                pixmap = pixmap.scaledToWidth(image_width, Qt.SmoothTransformation)
+                                image_label = QLabel()
+                                image_label.setPixmap(pixmap)
+                                image_label.setAlignment(Qt.AlignCenter)
+                                item_layout.addWidget(image_label)
+                            else:
+                                error_label = QLabel("Invalid image file")
+                                error_label.setAlignment(Qt.AlignCenter)
+                                item_layout.addWidget(error_label)
                         else:
                             error_label = QLabel("Image not found")
                             error_label.setAlignment(Qt.AlignCenter)
@@ -436,7 +537,7 @@ class ImageTab(QWidget):
                         error_label.setAlignment(Qt.AlignCenter)
                         item_layout.addWidget(error_label)
 
-                    # Tags and date
+                    # Tags, location and date
                     details_widget = QWidget()
                     details_layout = QVBoxLayout(details_widget)
                     details_layout.setContentsMargins(5, 5, 5, 5)
@@ -446,6 +547,10 @@ class ImageTab(QWidget):
                         tags_label = QLabel(f"<b>Tags:</b> {tags}")
                         tags_label.setWordWrap(True)
                         details_layout.addWidget(tags_label)
+
+                    location_label = QLabel(f"<b>Location:</b> {location}")
+                    location_label.setWordWrap(True)
+                    details_layout.addWidget(location_label)
 
                     date_label = QLabel(f"<small>Reported on: {date_reported}</small>")
                     date_label.setStyleSheet("color: #666;")
