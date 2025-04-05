@@ -6,12 +6,12 @@ from pathlib import Path
 from datetime import datetime
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QWidget, QLabel,
                              QPushButton, QVBoxLayout, QHBoxLayout, QFileDialog,
-                             QLineEdit, QListWidget, QListWidgetItem,
-                             QMessageBox, QTabWidget, QGridLayout, QSpacerItem,
-                             QSizePolicy, QStackedLayout, QRadioButton, QScrollArea,
+                             QLineEdit,
+                             QMessageBox, QTabWidget, QGridLayout,
+                             QStackedLayout, QRadioButton, QScrollArea,
                              QDesktopWidget, QComboBox)
-from PyQt5.QtGui import QPixmap, QFont, QImage
-from PyQt5.QtCore import Qt, QSize, QDateTime
+from PyQt5.QtGui import QPixmap, QFont
+from PyQt5.QtCore import Qt
 from image_detection import image_identification
 
 # Configure database path
@@ -307,12 +307,7 @@ class ImageTab(QWidget):
         
         if not file_path:
             return
-
-        # Check file size (5MB limit)
-        if os.path.getsize(file_path) > 5 * 1024 * 1024:
-            QMessageBox.warning(self, "Error", "Image file is too large (maximum 5MB allowed)")
-            return
-            
+    
         self.current_image_path = file_path
         try:
             # Load the image directly as pixmap for better performance
