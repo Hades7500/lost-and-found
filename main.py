@@ -200,33 +200,14 @@ class ImageTab(QWidget):
         self.update_building_options()
         self.update_floor_options()
 
-        # # Tags
-        # self.upload_layout.addWidget(QLabel("Tags (comma separated):"), 8, 0)
-        # self.tag_input_layout = QHBoxLayout()
-        # self.tag_input = QLineEdit()
-        # self.tag_input.setPlaceholderText("e.g., wallet, black, leather")
-        # self.tag_button = QPushButton("Add Tags")
-        # self.tag_button.clicked.connect(self.add_tags)
-        # self.tag_input_layout.addWidget(self.tag_input)
-        # self.tag_input_layout.addWidget(self.tag_button)
-        # self.upload_layout.addLayout(self.tag_input_layout, 8, 1)
-
-        # self.upload_layout.addWidget(QLabel("Current Tags:"), 9, 0, 1, 2)
-        # self.tag_list_widget = QListWidget()
-        # self.tag_list_widget.setMaximumHeight(100)
-        # self.upload_layout.addWidget(self.tag_list_widget, 10, 0, 1, 2)
-
         # Buttons
         self.bottom_buttons_layout = QHBoxLayout()
         self.submit_button = QPushButton("Submit Report")
         self.submit_button.clicked.connect(self.submit_data)
-        # self.delete_tag_button = QPushButton("Delete Selected Tag")
-        # self.delete_tag_button.clicked.connect(self.delete_selected_tag)
         self.clear_button = QPushButton("Clear Form")
         self.clear_button.clicked.connect(self.reset_form)
         
         self.bottom_buttons_layout.addWidget(self.submit_button)
-        # self.bottom_buttons_layout.addWidget(self.delete_tag_button)
         self.bottom_buttons_layout.addWidget(self.clear_button)
         self.bottom_buttons_layout.addStretch()
         self.upload_layout.addLayout(self.bottom_buttons_layout, 11, 0, 1, 2)
@@ -383,16 +364,6 @@ class ImageTab(QWidget):
             location += f", {floor}"
         location += f", {specific_location}"
 
-        if not self.tags:
-            reply = QMessageBox.question(
-                self,
-                "No Tags Added",
-                "You haven't added any tags. Are you sure you want to submit without tags?",
-                QMessageBox.Yes | QMessageBox.No
-            )
-            if reply == QMessageBox.No:
-                return
-
         reply = QMessageBox.question(
             self, 
             "Confirm Submission",
@@ -428,7 +399,7 @@ class ImageTab(QWidget):
             QMessageBox.information(
                 self, 
                 "Success", 
-                f"{self.item_type} item reported successfully.\n\nLocation: {location}\nTags: {', '.join(self.tags) if self.tags else 'None'}"
+                f"{self.item_type} item reported successfully.\n\nLocation: {location}"
             )
             self.reset_form()
         except Exception as e:
